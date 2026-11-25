@@ -249,7 +249,7 @@ const ItemRow = memo(function ItemRow(p: RowProps) {
       }}
       accessibilityActions={[{ name: 'delete', label: 'Delete item' }]}
       onAccessibilityAction={(e) => e.nativeEvent.actionName === 'delete' && p.onRemove()}
-      style={[{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.rule }, p.dragging && styles.lifted, style]}>
+      style={[{ borderBottomWidth: 1, borderBottomColor: c.paperLine }, p.dragging && styles.lifted, style]}>
       {/* Red strip revealed behind the row while swiping */}
       <Animated.View style={[StyleSheet.absoluteFill, styles.bin, { backgroundColor: c.danger }, bin]}>
         <Icon name="delete-outline" size={22} color="#FFFFFF" />

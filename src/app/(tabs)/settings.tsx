@@ -379,6 +379,7 @@ function CalendarSection() {
   const target = writable.find((x) => x.id === prefs.eventCalendar) ?? writable[0];
   const name = (x: PhoneCalendar) => (x.account && x.account !== x.title ? `${x.title} · ${x.account}` : x.title);
   const [open, setOpen] = useState(false);
+  const [picking, setPicking] = useState(false);
   const shown = cals.length - prefs.hiddenCalendars.filter((id) => cals.some((x) => x.id === id)).length;
 
   return (
@@ -402,8 +403,34 @@ function CalendarSection() {
               <Switch value={!prefs.hiddenCalendars.includes(x.id)} onValueChange={(v) => toggle(x.id, v)} trackColor={{ true: c.primary, false: c.ruleStrong }} thumbColor={!prefs.hiddenCalendars.includes(x.id) ? c.onPrimary : c.inkMuted} />
             </Pressable>
           ))}
-          {writable.length > 1 ? (
-            <Choice label="New events go to" value={target?.id ?? ''} onChange={(v) => setPref('eventCalendar', v)} options={writable.map((x) => ({ id: x.id, label: x.title }))} wrap />
+          {/* Dropdown: shows the chosen calendar, opens to pick another */}
+          {writable.length > 1 && target ? (
+            <View style={[styles.dropdown, { borderColor: c.ruleStrong }]}>
+              <Pressable onPress={() => setPicking((o) => !o)} android_ripple={{ color: c.rule }} style={styles.dropHead} accessibilityRole="button" accessibilityState={{ expanded: picking }} accessibilityLabel={`New events go to ${name(target)}`}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[type.labelSmall, { color: c.inkMuted }]}>New events go to</Text>
+                  <View style={styles.dropValue}>
+                    <View style={[styles.calDot, { backgroundColor: target.color }]} />
+                    <Text style={[type.body, { color: c.ink, flex: 1 }]} numberOfLines={1}>{name(target)}</Text>
+                  </View>
+                </View>
+                <Icon name={picking ? 'menu-up' : 'menu-down'} color={c.inkMuted} />
+              </Pressable>
+              {picking &&
+                writable.map((x) => (
+                  <Pressable
+                    key={x.id}
+                    onPress={() => { setPref('eventCalendar', x.id); setPicking(false); }}
+                    android_ripple={{ color: c.rule }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: x.id === target.id }}
+                    style={[styles.dropItem, { borderTopColor: c.rule }, x.id === target.id && { backgroundColor: c.primaryContainer }]}>
+                    <View style={[styles.calDot, { backgroundColor: x.color }]} />
+                    <Text style={[type.body, { color: x.id === target.id ? c.onPrimaryContainer : c.ink, flex: 1 }]} numberOfLines={1}>{name(x)}</Text>
+                    {x.id === target.id ? <Icon name="check" size={20} color={c.onPrimaryContainer} /> : null}
+                  </Pressable>
+                ))}
+            </View>
           ) : null}
         </>
       )}
@@ -557,6 +584,10 @@ const styles = StyleSheet.create({
   message: { flexDirection: 'row', gap: space(2), alignItems: 'flex-start' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
   calDot: { width: 14, height: 14, borderRadius: 7 },
+  dropdown: { borderWidth: 1, borderRadius: 12, overflow: 'hidden' },
+  dropHead: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingHorizontal: space(4), paddingVertical: space(2.5), minHeight: 56 },
+  dropValue: { flexDirection: 'row', alignItems: 'center', gap: space(2), marginTop: 2 },
+  dropItem: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingHorizontal: space(4), minHeight: 48, borderTopWidth: StyleSheet.hairlineWidth },
   step: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   bleed: { marginRight: -space(5) }, // let the colour row run to the screen edge so it reads as scrollable
   segments: { flexDirection: 'row', borderWidth: 1, borderRadius: 20, overflow: 'hidden', alignSelf: 'stretch' },

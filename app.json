@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "app.daftar.notes",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#F7F2E6",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

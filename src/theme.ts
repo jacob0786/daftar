@@ -15,6 +15,7 @@ const light = {
   inkMuted: '#56605A',
   rule: '#D8DDD8',
   ruleStrong: '#C2C9C3',
+  paperLine: '#C3D2DD', // ruled lines in notes and lists: soft blue, like notebook paper
   primary: '#0E4A3B',
   onPrimary: '#FFFFFF',
   primaryContainer: '#CFE3D9',
@@ -38,6 +39,7 @@ const dark: typeof light = {
   inkMuted: '#A3ADA6',
   rule: '#2A322E',
   ruleStrong: '#3A443F',
+  paperLine: '#2E3C46',
   primary: '#8CCFB2',
   onPrimary: '#00382A',
   primaryContainer: '#1F4A3D',
@@ -79,7 +81,7 @@ const ACCENTS: Record<Accent, { name: string; light: AccentSet; dark: AccentSet 
 export const ACCENT_LIST = (Object.keys(ACCENTS) as Accent[]).map((id) => ({ id, name: ACCENTS[id].name, swatch: ACCENTS[id].light.shell }));
 
 // True-black dark mode for OLED screens
-const BLACK: Partial<Palette> = { ground: '#000000', groundAlt: '#0B0D0C', rule: '#222826', ruleStrong: '#323A36', goldWash: '#1B1912' };
+const BLACK: Partial<Palette> = { ground: '#000000', groundAlt: '#0B0D0C', rule: '#222826', ruleStrong: '#323A36', paperLine: '#22303A', goldWash: '#1B1912' };
 
 // --- ColorNote's 9 colour slots as muted print inks (row bands only) ---
 export const COLOR_NAMES = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Black', 'Grey', 'White'] as const;

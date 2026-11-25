@@ -11,6 +11,7 @@ import { FormatToolbar, type Selection } from '@/components/FormatToolbar';
 import { Icon, type IconName } from '@/components/Icon';
 import { Markdown } from '@/components/Markdown';
 import { OptionsSheet, type SheetAction } from '@/components/OptionsSheet';
+import { RuledLines } from '@/components/RuledLines';
 import { Snackbar, type SnackMessage } from '@/components/Snackbar';
 import { blankNote, deleteForever, getColorNames, getNote, markSeen, newId, saveNote } from '@/db/database';
 import type { ColorIndex, Note, NoteStatus } from '@/db/types';
@@ -57,6 +58,7 @@ export default function NoteScreen() {
   // "Item deleted · Undo" bar for swiped-away list items
   const [snack, setSnack] = useState<SnackMessage>(null);
   const clearSnack = useCallback(() => setSnack(null), []);
+  const [bodyHeight, setBodyHeight] = useState(0); // for the ruled lines
   // Lists: the pinned "Add item" bar adds at the top, so jump back up to show it
   const addItem = useRef<(() => void) | null>(null);
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
@@ -332,6 +334,9 @@ export default function NoteScreen() {
                 <Markdown text={note.body} />
               </Pressable>
             ) : (
+              // Ruled lines behind the text, like notebook paper
+              <View onLayout={(e) => setBodyHeight(e.nativeEvent.layout.height)}>
+              <RuledLines height={bodyHeight} lineHeight={type.reading.lineHeight} />
               <TextInput
                 value={note.body}
                 ref={bodyRef}
@@ -349,6 +354,7 @@ export default function NoteScreen() {
                 textAlignVertical="top"
                 style={[type.reading, styles.body, { color: c.ink, textAlign: bodyRTL ? 'right' : 'left', writingDirection: bodyRTL ? 'rtl' : 'ltr' }]}
               />
+              </View>
             )}
           </ScrollView>
         </View>
@@ -446,7 +452,8 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space(2), marginTop: space(1), marginBottom: space(4) },
   tag: { borderWidth: 1, borderRadius: 6, paddingHorizontal: space(1.5), paddingVertical: space(0.5) },
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: space(1) },
-  body: { minHeight: 240, paddingTop: 0 },
+  // No padding and no extra font spacing, so each line of text sits exactly on a ruled line
+  body: { minHeight: 336, paddingTop: 0, paddingBottom: 0, paddingHorizontal: 0, includeFontPadding: false },
   lockPanel: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space(4), paddingHorizontal: space(8), paddingBottom: space(20) },
   filled: { height: 48, borderRadius: 24, paddingHorizontal: space(6), flexDirection: 'row', alignItems: 'center', gap: space(2) },
   passInput: { alignSelf: 'stretch', borderWidth: 1, borderRadius: 4, paddingHorizontal: space(4), height: 52 },
