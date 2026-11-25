@@ -1,3 +1,4 @@
+'use no memo'; // widgets must stay plain functions: the React Compiler's rewrite breaks drawing them
 import { FlexWidget, ListWidget, SvgWidget, TextWidget } from 'react-native-android-widget';
 
 import type { Note } from '@/db/types';
@@ -80,11 +81,11 @@ export function PinnedWidget({ notes, pinnedOnly, p }: { notes: Note[]; pinnedOn
 }
 
 // One note or list. Checklist items can be ticked right on the home screen.
-export function SingleNoteWidget({ note, p, rows }: { note: Note | null; p: WidgetPalette; rows: number }) {
+export function SingleNoteWidget({ note, p, rows, widgetId }: { note: Note | null; p: WidgetPalette; rows: number; widgetId: number }) {
   if (!note) {
     return (
-      <FlexWidget clickAction="OPEN_APP" style={{ height: 'match_parent', width: 'match_parent', backgroundColor: p.ground, borderRadius: 20, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <TextWidget text="This note was deleted. Hold the widget and choose another." style={{ fontSize: 14, color: p.inkMuted, textAlign: 'center' }} />
+      <FlexWidget clickAction="OPEN_URI" clickActionData={{ uri: pickUri(widgetId) }} style={{ height: 'match_parent', width: 'match_parent', backgroundColor: p.ground, borderRadius: 20, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <TextWidget text="This note was deleted. Tap to choose another." style={{ fontSize: 14, color: p.inkMuted, textAlign: 'center' }} />
       </FlexWidget>
     );
   }
@@ -137,11 +138,14 @@ export function SingleNoteWidget({ note, p, rows }: { note: Note | null; p: Widg
   );
 }
 
-// Shown in the widget picker and while choosing a note
-export function ChooseNotePlaceholder({ p }: { p: WidgetPalette }) {
+// Opens Daftar's own note picker for this widget (works on launchers that skip Android's setup screen, like Niagara)
+const pickUri = (widgetId: number) => `daftar://widget-note?widget=${widgetId}`;
+
+// Shown until a note is chosen; tapping it opens the picker
+export function ChooseNotePlaceholder({ p, widgetId }: { p: WidgetPalette; widgetId: number }) {
   return (
-    <FlexWidget style={{ height: 'match_parent', width: 'match_parent', backgroundColor: p.ground, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
-      <TextWidget text="Choose a note…" style={{ fontSize: 14, color: p.inkMuted }} />
+    <FlexWidget clickAction="OPEN_URI" clickActionData={{ uri: pickUri(widgetId) }} style={{ height: 'match_parent', width: 'match_parent', backgroundColor: p.ground, borderRadius: 20, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <TextWidget text="Tap to choose a note" style={{ fontSize: 15, fontWeight: '500', color: p.primary }} />
     </FlexWidget>
   );
 }

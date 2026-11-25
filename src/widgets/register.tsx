@@ -10,6 +10,7 @@ import { renderFor, setWidgetNoteId } from './render';
 
 // --- Background handler: Android asks for a drawing, or a tap happened on a widget ---
 registerWidgetTaskHandler(async ({ widgetInfo, widgetAction, clickAction, clickActionData, renderWidget }) => {
+  console.log(`[widget] ${widgetAction} ${widgetInfo.widgetName} #${widgetInfo.widgetId}`);
   if (widgetAction === 'WIDGET_DELETED') return;
   if (widgetAction === 'WIDGET_CLICK' && clickAction === 'TOGGLE_ITEM') {
     // Tick or untick a checklist item straight from the home screen
@@ -19,7 +20,11 @@ registerWidgetTaskHandler(async ({ widgetInfo, widgetAction, clickAction, clickA
       await saveNote({ ...n, items: n.items.map((i) => (i.id === itemId ? { ...i, done: !i.done } : i)), editedAt: Date.now() }, { silent: true });
     }
   }
-  renderWidget(await renderFor(widgetInfo));
+  try {
+    renderWidget(await renderFor(widgetInfo));
+  } catch (e) {
+    console.warn('[widget] drawing failed', e);
+  }
 });
 
 // --- Picking which note a "Note" widget shows ---

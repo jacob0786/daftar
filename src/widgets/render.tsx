@@ -1,3 +1,4 @@
+'use no memo'; // see NoteWidgets.tsx
 import type { WidgetInfo, WidgetRepresentation } from 'react-native-android-widget';
 
 import { getDb, getMeta, getNote, setMeta, toNote, type NoteRow } from '@/db/database';
@@ -48,11 +49,11 @@ export async function renderFor(info: WidgetInfo): Promise<WidgetRepresentation>
     };
   }
   const id = await widgetNoteId(info.widgetId);
-  if (!id) return { light: <ChooseNotePlaceholder p={p.light} />, dark: <ChooseNotePlaceholder p={p.dark} /> };
+  if (!id) return { light: <ChooseNotePlaceholder p={p.light} widgetId={info.widgetId} />, dark: <ChooseNotePlaceholder p={p.dark} widgetId={info.widgetId} /> };
   const note = await getNote(id);
   const rows = Math.floor((info.height - 60) / 21);
   return {
-    light: <SingleNoteWidget note={note} p={p.light} rows={rows} />,
-    dark: <SingleNoteWidget note={note} p={p.dark} rows={rows} />,
+    light: <SingleNoteWidget note={note} p={p.light} rows={rows} widgetId={info.widgetId} />,
+    dark: <SingleNoteWidget note={note} p={p.dark} rows={rows} widgetId={info.widgetId} />,
   };
 }

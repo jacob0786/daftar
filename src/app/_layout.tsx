@@ -49,6 +49,7 @@ function Shell() {
           <Stack.Screen name="note/[id]" />
           <Stack.Screen name="trash" />
           <Stack.Screen name="event" />
+          <Stack.Screen name="widget-note" />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
