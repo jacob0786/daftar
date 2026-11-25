@@ -11,12 +11,21 @@ import { isRTL } from '@/lib/text';
 import { space, type, useTheme } from '@/theme';
 import { Icon } from './Icon';
 
-type Props = { items: ChecklistItem[]; onChange: (items: ChecklistItem[]) => void; autoFocusFirst?: boolean };
+type Props = {
+  items: ChecklistItem[];
+  onChange: (items: ChecklistItem[]) => void;
+  autoFocusFirst?: boolean;
+  // Called after an item is swiped away, with a way to put it back (the screen shows an Undo bar)
+  onDeleted?: (undo: () => void) => void;
+};
 
-// Unticked items first (drag the handle to reorder); ticked ones fold into their own section below
-export function ChecklistEditor({ items, onChange, autoFocusFirst }: Props) {
+// Unticked items first (drag the handle to reorder, swipe sideways to delete); ticked ones fold into their own section below
+export function ChecklistEditor({ items, onChange, autoFocusFirst, onDeleted }: Props) {
   const { c } = useTheme();
   const refs = useRef(new Map<string, Focusable | null>());
+  // Always the newest list, so Undo works even after more edits
+  const latest = useRef(items);
+  latest.current = items;
   const [focusId, setFocusId] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(true);
 
@@ -42,6 +51,18 @@ export function ChecklistEditor({ items, onChange, autoFocusFirst }: Props) {
     onChange(items.filter((i) => i.id !== id));
     const prev = open[idx - 1];
     if (prev) focusLater(prev.id);
+  };
+
+  // Swipe to delete: remove now, and offer Undo that puts it back in the same place
+  const remove = (it: ChecklistItem) => {
+    const at = latest.current.findIndex((i) => i.id === it.id);
+    if (at < 0) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    onChange(latest.current.filter((i) => i.id !== it.id));
+    onDeleted?.(() => {
+      const cur = latest.current.filter((i) => i.id !== it.id);
+      onChange([...cur.slice(0, at), it, ...cur.slice(at)]);
+    });
   };
 
   const toggle = (it: ChecklistItem) => {
@@ -121,7 +142,7 @@ export function ChecklistEditor({ items, onChange, autoFocusFirst }: Props) {
       onSubmit={() => insertAfter(it.id)}
       onBackspace={() => removeIfEmpty(it.id)}
       onFocus={() => setFocusId(it.id)}
-      onRemove={() => onChange(items.filter((i) => i.id !== it.id))}
+      onRemove={() => remove(it)}
       onDragStart={() => startDrag(it.id)}
       onDragMove={moveDrag}
       onDragEnd={endDrag}
@@ -187,15 +208,52 @@ const ItemRow = memo(function ItemRow(p: RowProps) {
     zIndex: p.dragging ? 10 : 0,
   }));
 
+  // Swipe sideways to delete: past a third of the width (or a quick flick) removes the item
+  const tx = useSharedValue(0);
+  const width = useSharedValue(360);
+  const swipe = Gesture.Pan()
+    .activeOffsetX([-16, 16])
+    .failOffsetY([-12, 12])
+    .onUpdate((e) => {
+      tx.value = e.translationX;
+    })
+    .onEnd((e) => {
+      const far = Math.abs(e.translationX) > width.value / 3 || (Math.abs(e.velocityX) > 900 && Math.abs(e.translationX) > 40);
+      if (far) {
+        const dir = e.translationX > 0 ? 1 : -1;
+        tx.value = withTiming(dir * width.value, { duration: 140 }, (ok) => {
+          if (ok) scheduleOnRN(p.onRemove);
+        });
+      } else {
+        tx.value = withTiming(0, { duration: 160 });
+      }
+    });
+  const slide = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }] }));
+  const bin = useAnimatedStyle(() => ({
+    opacity: tx.value === 0 ? 0 : 1,
+    justifyContent: tx.value > 0 ? 'flex-start' : 'flex-end',
+  }));
+
   return (
     <Animated.View
-      onLayout={p.onLayout}
-      style={[
-        styles.row,
-        { minHeight: Math.max(48, row.min - 16), borderBottomColor: c.rule, backgroundColor: p.dragging ? c.groundAlt : 'transparent' },
-        p.dragging && styles.lifted,
-        style,
-      ]}>
+      onLayout={(e) => {
+        width.value = e.nativeEvent.layout.width;
+        p.onLayout(e);
+      }}
+      accessibilityActions={[{ name: 'delete', label: 'Delete item' }]}
+      onAccessibilityAction={(e) => e.nativeEvent.actionName === 'delete' && p.onRemove()}
+      style={[{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.rule }, p.dragging && styles.lifted, style]}>
+      {/* Red strip revealed behind the row while swiping */}
+      <Animated.View style={[StyleSheet.absoluteFill, styles.bin, { backgroundColor: c.danger }, bin]}>
+        <Icon name="delete-outline" size={22} color="#FFFFFF" />
+      </Animated.View>
+      <GestureDetector gesture={swipe}>
+      <Animated.View
+        style={[
+          styles.row,
+          { minHeight: Math.max(48, row.min - 16), backgroundColor: p.dragging ? c.groundAlt : c.ground },
+          slide,
+        ]}>
       {p.draggable ? (
         <GestureDetector gesture={pan}>
           <View style={styles.handle} accessibilityLabel="Drag to reorder" accessibilityRole="adjustable">
@@ -228,11 +286,8 @@ const ItemRow = memo(function ItemRow(p: RowProps) {
           { color: it.done ? c.inkMuted : c.ink, textDecorationLine: it.done ? 'line-through' : 'none', textAlign: rtl ? 'right' : 'left', writingDirection: rtl ? 'rtl' : 'ltr' },
         ]}
       />
-      {p.focused && (
-        <Pressable onPress={p.onRemove} hitSlop={4} style={styles.box} accessibilityLabel="Remove item">
-          <Icon name="close" size={20} color={c.inkMuted} />
-        </Pressable>
-      )}
+      </Animated.View>
+      </GestureDetector>
     </Animated.View>
   );
 });
@@ -248,7 +303,8 @@ function AutoAdd({ onAdd }: { onAdd: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'flex-start', borderBottomWidth: StyleSheet.hairlineWidth },
+  row: { flexDirection: 'row', alignItems: 'flex-start' },
+  bin: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space(5) },
   lifted: { elevation: 6, borderRadius: 8 },
   handle: { width: 28, height: 48, alignItems: 'center', justifyContent: 'center', marginLeft: -space(2) },
   handleSpace: { width: 28, marginLeft: -space(2) },

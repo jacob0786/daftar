@@ -11,6 +11,7 @@ import { FormatToolbar, type Selection } from '@/components/FormatToolbar';
 import { Icon, type IconName } from '@/components/Icon';
 import { Markdown } from '@/components/Markdown';
 import { OptionsSheet, type SheetAction } from '@/components/OptionsSheet';
+import { Snackbar, type SnackMessage } from '@/components/Snackbar';
 import { blankNote, deleteForever, getColorNames, getNote, markSeen, newId, saveNote } from '@/db/database';
 import type { ColorIndex, Note, NoteStatus } from '@/db/types';
 import { useLabels } from '@/hooks/useNotes';
@@ -46,6 +47,9 @@ export default function NoteScreen() {
   const [selection, setSelection] = useState<Selection>({ start: 0, end: 0 });
   const [bodyFocused, setBodyFocused] = useState(false);
   const [dismissedSuggestion, setDismissedSuggestion] = useState(false);
+  // "Item deleted · Undo" bar for swiped-away list items
+  const [snack, setSnack] = useState<SnackMessage>(null);
+  const clearSnack = useCallback(() => setSnack(null), []);
 
   const bodyRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   const isNew = useRef(params.id === 'new');
@@ -285,7 +289,12 @@ export default function NoteScreen() {
             </View>
 
             {note.kind === 'checklist' ? (
-              <ChecklistEditor items={note.items} onChange={(items) => edit({ items })} autoFocusFirst={isNew.current} />
+              <ChecklistEditor
+                items={note.items}
+                onChange={(items) => edit({ items })}
+                autoFocusFirst={isNew.current}
+                onDeleted={(undo) => setSnack({ text: 'Item deleted', action: { label: 'Undo', run: undo } })}
+              />
             ) : rich && reading ? (
               <Pressable onPress={() => setReading(false)} accessibilityHint="Tap to edit" style={{ minHeight: 240 }}>
                 <Markdown text={note.body} />
@@ -323,6 +332,8 @@ export default function NoteScreen() {
           />
         ) : null}
       </KeyboardAvoidingView>
+
+      <Snackbar message={snack} onDone={clearSnack} bottom={space(4) + insets.bottom} />
 
       <OptionsSheet
         visible={sheet}
