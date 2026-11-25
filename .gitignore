@@ -41,3 +41,23 @@ example
 # generated native folders
 /ios
 /android
+
+# Built APK
+daftar.apk
+build.log
+
+# desktop build output
+dist-web/
+desktop/node_modules/
+desktop/app/
+desktop/release/
+build2.log
+
+# private: personal design notes, local tool settings, your own Expo project
+PRODUCT.md
+.impeccable/
+.claude/
+daftar.local.json
+*.log
+*.apk
+
