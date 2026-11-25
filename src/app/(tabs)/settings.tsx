@@ -378,15 +378,24 @@ function CalendarSection() {
   const writable = cals.filter((x) => x.writable);
   const target = writable.find((x) => x.id === prefs.eventCalendar) ?? writable[0];
   const name = (x: PhoneCalendar) => (x.account && x.account !== x.title ? `${x.title} · ${x.account}` : x.title);
+  const [open, setOpen] = useState(false);
+  const shown = cals.length - prefs.hiddenCalendars.filter((id) => cals.some((x) => x.id === id)).length;
 
   return (
-    <Section icon="calendar-month-outline" title="Calendar" status={allowed === false ? 'Not connected to your phone calendars' : `${cals.length - prefs.hiddenCalendars.filter((id) => cals.some((x) => x.id === id)).length} of ${cals.length} calendars shown`}>
+    <Section icon="calendar-month-outline" title="Calendar" status={allowed === false ? 'Not connected to your phone calendars' : 'Your phone calendars on the Calendar tab'}>
       {allowed === false ? (
         <Button label="Allow calendar access" icon="calendar-sync-outline" onPress={async () => { if (await askCalendarPermission()) load(); }} filled />
       ) : (
         <>
-          <Text style={[type.labelSmall, { color: c.inkMuted }]}>Show on the Calendar tab</Text>
-          {cals.map((x) => (
+          {/* Collapsed by default: a phone can have a long list of calendars */}
+          <Pressable onPress={() => setOpen((o) => !o)} style={styles.toggle} accessibilityRole="button" accessibilityState={{ expanded: open }}>
+            <View style={{ flex: 1 }}>
+              <Text style={[type.body, { color: c.ink }]}>Calendars to show</Text>
+              <Text style={[type.bodySmall, { color: c.inkMuted }]}>{shown} of {cals.length} shown on the Calendar tab</Text>
+            </View>
+            <Icon name={open ? 'chevron-up' : 'chevron-down'} color={c.inkMuted} />
+          </Pressable>
+          {open && cals.map((x) => (
             <Pressable key={x.id} onPress={() => toggle(x.id, prefs.hiddenCalendars.includes(x.id))} style={styles.toggle} accessibilityRole="switch" accessibilityState={{ checked: !prefs.hiddenCalendars.includes(x.id) }}>
               <View style={[styles.calDot, { backgroundColor: x.color }]} />
               <Text style={[type.body, { color: c.ink, flex: 1 }]} numberOfLines={1}>{name(x)}</Text>
@@ -552,7 +561,8 @@ const styles = StyleSheet.create({
   bleed: { marginRight: -space(5) }, // let the colour row run to the screen edge so it reads as scrollable
   segments: { flexDirection: 'row', borderWidth: 1, borderRadius: 20, overflow: 'hidden', alignSelf: 'stretch' },
   segmentsWrap: { borderWidth: 0, flexWrap: 'wrap', gap: space(2), borderRadius: 0 },
-  segment: { flex: 1, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space(1), paddingHorizontal: space(2) },
+  // Grow from each label's own width, so longer words like "Comfortable" get more room
+  segment: { flexGrow: 1, flexBasis: 'auto', minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space(1.5), paddingHorizontal: space(4) },
   pill: { height: 36, borderRadius: 8, borderWidth: 1, paddingHorizontal: space(3), flexDirection: 'row', alignItems: 'center', gap: space(1.5), overflow: 'hidden' },
   swatches: { flexDirection: 'row', gap: space(2) },
   swatchWrap: { alignItems: 'center', gap: space(1), width: 64 },

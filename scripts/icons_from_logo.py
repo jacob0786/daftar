@@ -64,7 +64,8 @@ def place(art: Image.Image, size: int, fill: float, bg=None) -> Image.Image:
 def main():
     book = cut_out(Image.open(IMG / "logo-source.png"))
 
-    # Android adaptive icon: the book sits inside the 66% safe zone on a paper background layer
+    # Android adaptive icon: the book matches Google's keyline for tall shapes (about 56% of the layer),
+    # inside the 66% safe zone, on a paper background layer that the launcher cuts to its own shape
     place(book, 1024, 0.56).save(IMG / "android-icon-foreground.png")
     Image.new("RGBA", (1024, 1024), PAPER + (255,)).save(IMG / "android-icon-background.png")
     # Monochrome (themed icons): white silhouette
@@ -73,13 +74,14 @@ def main():
     mono.putalpha(alpha)
     mono.save(IMG / "android-icon-monochrome.png")
 
-    # Legacy / store / desktop icon: book on paper, rounded square left to the launcher
-    full = place(book, 1024, 0.78, PAPER + (255,))
+    # Desktop / store / legacy icon: the book alone on a transparent background (no square behind it),
+    # filling most of the canvas the way Windows and macOS app icons do
+    full = place(book, 1024, 0.88)
     full.save(IMG / "icon.png")
-    # Splash: the book alone (splash background colour is paper)
-    place(book, 1024, 0.9).save(IMG / "splash-icon.png")
-    # Browser / desktop favicon
-    full.resize((48, 48), Image.LANCZOS).save(IMG / "favicon.png")
+    # Splash: Android 12+ shows the splash icon inside a circle covering 2/3 of it, so keep the book within that
+    place(book, 1024, 0.62).save(IMG / "splash-icon.png")
+    # Browser / desktop favicon (small sizes want the book as big as possible)
+    place(book, 256, 0.94).resize((48, 48), Image.LANCZOS).save(IMG / "favicon.png")
     print("Icons written to", IMG)
 
 

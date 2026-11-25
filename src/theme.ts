@@ -97,7 +97,7 @@ const BASE = {
   bodySmall: { fontSize: 14, lineHeight: 20, fontWeight: '400' as const },
   label: { fontSize: 14, lineHeight: 20, fontWeight: '500' as const, letterSpacing: 0.1 },
   labelSmall: { fontSize: 12, lineHeight: 16, fontWeight: '500' as const, letterSpacing: 0.5 },
-  day: { fontSize: 22, lineHeight: 24, fontWeight: '700' as const, fontVariant: ['tabular-nums'] as 'tabular-nums'[] },
+  day: { fontSize: 19, lineHeight: 22, fontWeight: '500' as const, fontVariant: ['tabular-nums'] as 'tabular-nums'[] },
 };
 const SCALE: Record<FontSize, number> = { small: 0.9, default: 1, large: 1.12, larger: 1.25 };
 

@@ -6,7 +6,7 @@ import { PromptDialog } from '@/components/Dialog';
 import { Fab } from '@/components/Fab';
 import { FilterChips, type Filter } from '@/components/FilterChips';
 import { Icon } from '@/components/Icon';
-import { NoteList } from '@/components/NoteList';
+import { NoteList, type BulkAction } from '@/components/NoteList';
 import { ShellHeader } from '@/components/ShellHeader';
 import { StatusScrim } from '@/components/StatusScrim';
 import {
@@ -79,6 +79,26 @@ export default function NotesScreen() {
     : 'On this device only';
   const newParams = { color: filter.color ?? prefs.defaultColor ?? '', label: filter.labelId ?? '' };
 
+  // Archive / trash: used by the selection bar and by swiping a row
+  const archiveAction: BulkAction = {
+    icon: 'archive-arrow-down-outline',
+    label: 'Archive',
+    run: async (ids) => {
+      await setStatus(ids, 'archived');
+      syncSoon();
+      return { text: ids.length === 1 ? 'Archived' : `${ids.length} archived`, action: { label: 'Undo', run: () => setStatus(ids, 'active') } };
+    },
+  };
+  const trashAction: BulkAction = {
+    icon: 'delete-outline',
+    label: 'Move to trash',
+    run: async (ids) => {
+      await setStatus(ids, 'trash');
+      syncSoon();
+      return { text: ids.length === 1 ? 'Moved to trash' : `${ids.length} moved to trash`, action: { label: 'Undo', run: () => setStatus(ids, 'active') } };
+    },
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <NoteList
@@ -137,6 +157,9 @@ export default function NotesScreen() {
             />
           </>
         }
+        // Swipe right to archive, left to move to trash
+        swipeRight={{ ...archiveAction, color: 'primary' }}
+        swipeLeft={{ ...trashAction, color: 'danger' }}
         actions={[
           {
             icon: 'pin-outline',
@@ -148,24 +171,8 @@ export default function NotesScreen() {
               syncSoon();
             },
           },
-          {
-            icon: 'archive-arrow-down-outline',
-            label: 'Archive',
-            run: async (ids) => {
-              await setStatus(ids, 'archived');
-              syncSoon();
-              return { text: `${ids.length} archived`, action: { label: 'Undo', run: () => setStatus(ids, 'active') } };
-            },
-          },
-          {
-            icon: 'delete-outline',
-            label: 'Move to trash',
-            run: async (ids) => {
-              await setStatus(ids, 'trash');
-              syncSoon();
-              return { text: `${ids.length} moved to trash`, action: { label: 'Undo', run: () => setStatus(ids, 'active') } };
-            },
-          },
+          archiveAction,
+          trashAction,
         ]}
         empty={
           query || filter.kind || filter.color !== undefined || filter.labelId

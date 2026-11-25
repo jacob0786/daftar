@@ -9,13 +9,14 @@ import { Icon } from './Icon';
 
 type Props = {
   note: Note;
+  repeat?: boolean; // same day as the row above: leave the date out
   selected: boolean;
   onPress: (n: Note) => void;
   onLongPress: (n: Note) => void;
 };
 
 // One timetable row: colour band | day column | title, with list progress for checklists
-export const NoteRow = memo(function NoteRow({ note, selected, onPress, onLongPress }: Props) {
+export const NoteRow = memo(function NoteRow({ note, repeat, selected, onPress, onLongPress }: Props) {
   const { c, ink, row, prefs } = useTheme();
   const today = sameDay(note.editedAt, Date.now());
   const { day, sub } = dayParts(note.editedAt);
@@ -40,10 +41,14 @@ export const NoteRow = memo(function NoteRow({ note, selected, onPress, onLongPr
 
       {timetable && (
         <View style={[styles.day, { borderRightColor: c.rule, paddingVertical: space(row.pad - 1) }]}>
-          <Text style={[type.day, { color: today ? c.goldInk : c.ink }]}>{day}</Text>
-          <Text style={[type.labelSmall, { color: today ? c.goldInk : c.inkMuted, textTransform: 'uppercase' }]} numberOfLines={1}>
-            {sub}
-          </Text>
+          {repeat ? null : (
+            <>
+              <Text style={[type.day, { color: today ? c.goldInk : c.inkMuted }]}>{day}</Text>
+              <Text style={[type.labelSmall, { color: today ? c.goldInk : c.inkMuted, textTransform: 'uppercase' }]} numberOfLines={1}>
+                {sub}
+              </Text>
+            </>
+          )}
         </View>
       )}
 
@@ -56,7 +61,7 @@ export const NoteRow = memo(function NoteRow({ note, selected, onPress, onLongPr
             {title}
           </Text>
           {note.pinned && <Icon name="pin" size={16} color={c.inkMuted} />}
-          {!timetable && (
+          {!timetable && !repeat && (
             <Text style={[type.labelSmall, { color: today ? c.goldInk : c.inkMuted, fontVariant: ['tabular-nums'] }]}>
               {today ? 'Today' : shortDate(note.editedAt)}
             </Text>

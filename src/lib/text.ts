@@ -25,6 +25,17 @@ export function isRTL(text: string | null | undefined): boolean {
   return false;
 }
 
+// Does this text carry formatting marks Daftar can show (# headings, **bold**, bullets, quotes…)?
+// Used when pasting, to switch a plain note to formatting so the pasted styles are kept.
+export function looksFormatted(text: string): boolean {
+  const lines = text.split('\n');
+  const strong =
+    lines.some((l) => /^#{1,3}\s+\S/.test(l) || /^>\s+\S/.test(l) || /^(---|\*\*\*)\s*$/.test(l)) ||
+    /\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|==[^=\n]+==|`[^`\n]+`/.test(text);
+  const listLines = lines.filter((l) => /^\s*([-*•]|\d+[.)])\s+\S/.test(l)).length;
+  return strong || listLines >= 2;
+}
+
 // First non-empty line, trimmed, for list previews
 export function firstLine(text: string | null | undefined, skip = 0): string {
   if (!text) return '';

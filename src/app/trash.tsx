@@ -40,6 +40,17 @@ export default function TrashScreen() {
           />
         }
         footerSpace={24}
+        // Swipe right to restore (no swipe for delete-forever: that always asks first)
+        swipeRight={{
+          icon: 'restore',
+          label: 'Restore',
+          color: 'primary',
+          run: async (ids) => {
+            await setStatus(ids, 'active');
+            syncSoon();
+            return { text: 'Restored to Notes', action: { label: 'Undo', run: () => setStatus(ids, 'trash') } };
+          },
+        }}
         actions={[
           {
             icon: 'restore',

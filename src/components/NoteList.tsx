@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { markSeen, type SortOrder } from '@/db/database';
 import type { Note } from '@/db/types';
-import { monthKey, monthLabel } from '@/lib/dates';
+import { monthKey, monthLabel, sameDay } from '@/lib/dates';
 import { syncInBackground } from '@/sync/scheduler';
 import { useSyncState } from '@/hooks/useNotes';
 import { COLOR_NAMES, space, type, useTheme } from '@/theme';
@@ -16,6 +16,7 @@ const NO_NAMES: (string | null)[] = Array(9).fill(null);
 import { Icon, type IconName } from './Icon';
 import { NoteRow } from './NoteRow';
 import { Snackbar, type SnackMessage } from './Snackbar';
+import { SwipeRow, type SwipeSide } from './SwipeRow';
 
 export type BulkAction = { icon: IconName; label: string; run: (ids: string[]) => Promise<SnackMessage | void> };
 
@@ -28,6 +29,9 @@ type Props = {
   overlay?: ReactNode;
   sort?: SortOrder;
   colorNames?: (string | null)[];
+  // Swipe a row right / left to run one of these on that note (with the same Undo bar)
+  swipeRight?: BulkAction & { color: 'primary' | 'danger' };
+  swipeLeft?: BulkAction & { color: 'primary' | 'danger' };
 };
 
 function groupFor(n: Note, sort: SortOrder, colorNames: (string | null)[]) {
@@ -50,7 +54,7 @@ function groupFor(n: Note, sort: SortOrder, colorNames: (string | null)[]) {
 }
 
 // The timetable: sections with a sticky guide bar, rows, multi-select
-export function NoteList({ notes, header, actions, empty, footerSpace = 96, overlay, sort = 'edited', colorNames = NO_NAMES }: Props) {
+export function NoteList({ notes, header, actions, empty, footerSpace = 96, overlay, sort = 'edited', colorNames = NO_NAMES, swipeRight, swipeLeft }: Props) {
   const { c } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -92,6 +96,19 @@ export function NoteList({ notes, header, actions, empty, footerSpace = 96, over
     [router, selected.size, toggle],
   );
 
+  // Turn a swipe action into what SwipeRow needs, for one note
+  const side = (a: Props['swipeRight'], n: Note): SwipeSide | undefined =>
+    a && {
+      icon: a.icon,
+      label: a.label,
+      color: a.color === 'danger' ? c.danger : c.primary,
+      run: async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        const msg = await a.run([n.id]);
+        if (msg) setSnack(msg);
+      },
+    };
+
   const runAction = async (a: BulkAction) => {
     const ids = [...selected];
     setSelected(new Set());
@@ -114,7 +131,16 @@ export function NoteList({ notes, header, actions, empty, footerSpace = 96, over
             </Text>
           </View>
         )}
-        renderItem={({ item }) => <NoteRow note={item} selected={selected.has(item.id)} onPress={open} onLongPress={toggle} />}
+        renderItem={({ item, index, section }) => {
+          // Same day as the row above (in this section)? Then the date isn't repeated
+          const prev = index > 0 ? section.data[index - 1] : null;
+          const repeat = !!prev && !prev.pinned === !item.pinned && sameDay(prev.editedAt, item.editedAt);
+          return (
+            <SwipeRow enabled={!selecting} right={side(swipeRight, item)} left={side(swipeLeft, item)}>
+              <NoteRow note={item} repeat={repeat} selected={selected.has(item.id)} onPress={open} onLongPress={toggle} />
+            </SwipeRow>
+          );
+        }}
         ListEmptyComponent={
           notes ? (
             <View style={styles.empty}>

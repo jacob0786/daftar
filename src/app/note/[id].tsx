@@ -17,7 +17,7 @@ import type { ColorIndex, Note, NoteStatus } from '@/db/types';
 import { useLabels } from '@/hooks/useNotes';
 import { longDate, shortDate } from '@/lib/dates';
 import { detectDate } from '@/lib/detectDate';
-import { isRTL } from '@/lib/text';
+import { isRTL, looksFormatted } from '@/lib/text';
 import { decryptContent, encryptContent, isUnlocked, isVaultSetUp, unlockWithBiometrics, unlockWithPassphrase } from '@/lib/vault';
 import { syncSoon } from '@/sync/scheduler';
 import { BAND, space, type, useTheme } from '@/theme';
@@ -26,6 +26,13 @@ type Phase = 'loading' | 'locked' | 'ready' | 'missing';
 
 // Changing any of these counts as editing the words, and moves the note's date to now
 const CONTENT_KEYS: (keyof Note)[] = ['title', 'body', 'items', 'kind'];
+
+// How many characters two texts share at the start (to find where a paste landed)
+function commonPrefix(a: string, b: string) {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return i;
+}
 
 export default function NoteScreen() {
   const { c, ink, isDark, prefs } = useTheme();
@@ -50,6 +57,13 @@ export default function NoteScreen() {
   // "Item deleted · Undo" bar for swiped-away list items
   const [snack, setSnack] = useState<SnackMessage>(null);
   const clearSnack = useCallback(() => setSnack(null), []);
+  // Lists: the pinned "Add item" bar adds at the top, so jump back up to show it
+  const addItem = useRef<(() => void) | null>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const addToTop = () => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    addItem.current?.();
+  };
 
   const bodyRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   const isNew = useRef(params.id === 'new');
@@ -212,6 +226,23 @@ export default function NoteScreen() {
   const titleRTL = isRTL(note.title);
   const bodyRTL = isRTL(note.body);
   const rich = note.format === 'rich' && note.kind === 'text';
+
+  // Typing in the note body. A paste (a big jump in length) carrying formatting marks
+  // turns formatting on, so headings, bold and bullets show as intended; Undo turns it back off.
+  const onBodyText = (t: string) => {
+    const added = t.length - note.body.length;
+    if (!rich && added >= 12) {
+      const start = commonPrefix(note.body, t);
+      const pasted = t.slice(start, start + added);
+      if (looksFormatted(pasted)) {
+        edit({ body: t, format: 'rich' });
+        setSnack({ text: 'Formatting turned on to keep the pasted styles', action: { label: 'Undo', run: () => edit({ format: 'plain' }) } });
+        return;
+      }
+    }
+    edit({ body: t });
+  };
+
   const sheetActions: SheetAction[] = [
     { icon: 'calendar-blank-outline', label: note.dateAt ? `Date: ${shortDate(note.dateAt)}` : 'Add a date', onPress: () => { setSheet(false); setDateSheet(true); } },
     ...(note.kind === 'text'
@@ -248,7 +279,7 @@ export default function NoteScreen() {
       <KeyboardAvoidingView behavior="padding" style={styles.fill}>
         <View style={styles.fill}>
           <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: BAND, backgroundColor: ink(note.color) }} />
-          <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+          <ScrollView ref={scrollRef} contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
             <TextInput
               value={note.title}
               onChangeText={(t) => edit({ title: t.replace(/\n/g, ' ') })}
@@ -293,6 +324,7 @@ export default function NoteScreen() {
                 items={note.items}
                 onChange={(items) => edit({ items })}
                 autoFocusFirst={isNew.current}
+                addRef={addItem}
                 onDeleted={(undo) => setSnack({ text: 'Item deleted', action: { label: 'Undo', run: undo } })}
               />
             ) : rich && reading ? (
@@ -303,7 +335,7 @@ export default function NoteScreen() {
               <TextInput
                 value={note.body}
                 ref={bodyRef}
-                onChangeText={(t) => edit({ body: t })}
+                onChangeText={onBodyText}
                 onSelectionChange={rich ? (e) => setSelection(e.nativeEvent.selection) : undefined}
                 onFocus={() => setBodyFocused(true)}
                 onBlur={() => setBodyFocused(false)}
@@ -320,6 +352,15 @@ export default function NoteScreen() {
             )}
           </ScrollView>
         </View>
+        {/* Lists: "Add item" always within reach at the bottom (rides above the keyboard) */}
+        {note.kind === 'checklist' ? (
+          <View style={[styles.addBar, { borderTopColor: c.rule, backgroundColor: c.ground, paddingBottom: insets.bottom }]}>
+            <Pressable onPress={addToTop} android_ripple={{ color: c.rule }} accessibilityRole="button" style={styles.addBtn}>
+              <Icon name="plus" color={c.primary} />
+              <Text style={[type.label, { color: c.primary }]}>Add item</Text>
+            </Pressable>
+          </View>
+        ) : null}
         {rich && !reading && bodyFocused ? (
           <FormatToolbar
             text={note.body}
@@ -333,7 +374,7 @@ export default function NoteScreen() {
         ) : null}
       </KeyboardAvoidingView>
 
-      <Snackbar message={snack} onDone={clearSnack} bottom={space(4) + insets.bottom} />
+      <Snackbar message={snack} onDone={clearSnack} bottom={space(note.kind === 'checklist' ? 18 : 4) + insets.bottom} />
 
       <OptionsSheet
         visible={sheet}
@@ -396,6 +437,8 @@ export default function NoteScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  addBar: { borderTopWidth: StyleSheet.hairlineWidth },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: space(3), minHeight: 56, paddingHorizontal: space(5) },
   bar: { flexDirection: 'row', alignItems: 'center', height: 64, paddingHorizontal: space(1), borderBottomWidth: StyleSheet.hairlineWidth },
   iconBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   page: { paddingLeft: space(5) + BAND, paddingRight: space(5), paddingTop: space(4), paddingBottom: space(30) },

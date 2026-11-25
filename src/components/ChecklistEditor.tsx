@@ -17,10 +17,12 @@ type Props = {
   autoFocusFirst?: boolean;
   // Called after an item is swiped away, with a way to put it back (the screen shows an Undo bar)
   onDeleted?: (undo: () => void) => void;
+  // The screen's own "Add item" button (pinned at the bottom) calls this; it adds a new item at the top
+  addRef?: { current: (() => void) | null };
 };
 
 // Unticked items first (drag the handle to reorder, swipe sideways to delete); ticked ones fold into their own section below
-export function ChecklistEditor({ items, onChange, autoFocusFirst, onDeleted }: Props) {
+export function ChecklistEditor({ items, onChange, autoFocusFirst, onDeleted, addRef }: Props) {
   const { c } = useTheme();
   const refs = useRef(new Map<string, Focusable | null>());
   // Always the newest list, so Undo works even after more edits
@@ -36,13 +38,15 @@ export function ChecklistEditor({ items, onChange, autoFocusFirst, onDeleted }: 
 
   const focusLater = (id: string) => setTimeout(() => refs.current.get(id)?.focus(), 30);
 
-  // Enter: add a new item right after this one
+  // Enter: add a new item right after this one. With no item given, add at the very top.
   const insertAfter = (id: string | null) => {
+    const cur = latest.current;
     const item = { id: newId(), text: '', done: false };
-    const at = id ? items.findIndex((i) => i.id === id) + 1 : items.filter((i) => !i.done).length;
-    onChange([...items.slice(0, at), item, ...items.slice(at)]);
+    const at = id ? cur.findIndex((i) => i.id === id) + 1 : 0;
+    onChange([...cur.slice(0, at), item, ...cur.slice(at)]);
     focusLater(item.id);
   };
+  if (addRef) addRef.current = () => insertAfter(null);
 
   // Backspace on an empty item: remove it and go to the previous one
   const removeIfEmpty = (id: string) => {
@@ -152,12 +156,15 @@ export function ChecklistEditor({ items, onChange, autoFocusFirst, onDeleted }: 
   return (
     <View>
       <View>{open.map((it, i) => row(it, i, true))}</View>
-      <Pressable onPress={() => insertAfter(open[open.length - 1]?.id ?? null)} style={styles.add} accessibilityRole="button" android_ripple={{ color: c.rule }}>
-        <View style={styles.box}>
-          <Icon name="plus" color={c.primary} />
-        </View>
-        <Text style={[type.body, { color: c.primary }]}>Add item</Text>
-      </Pressable>
+      {/* Inline button only when the screen doesn't pin its own at the bottom */}
+      {addRef ? null : (
+        <Pressable onPress={() => insertAfter(null)} style={styles.add} accessibilityRole="button" android_ripple={{ color: c.rule }}>
+          <View style={styles.box}>
+            <Icon name="plus" color={c.primary} />
+          </View>
+          <Text style={[type.body, { color: c.primary }]}>Add item</Text>
+        </Pressable>
+      )}
 
       {done.length > 0 && (
         <>
