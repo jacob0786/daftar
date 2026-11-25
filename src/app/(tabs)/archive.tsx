@@ -2,6 +2,7 @@ import { View } from 'react-native';
 
 import { NoteList } from '@/components/NoteList';
 import { ShellHeader } from '@/components/ShellHeader';
+import { StatusScrim } from '@/components/StatusScrim';
 import { setStatus } from '@/db/database';
 import { useNotes } from '@/hooks/useNotes';
 import { syncSoon } from '@/sync/scheduler';
@@ -36,6 +37,7 @@ export default function ArchiveScreen() {
         ]}
         empty={{ icon: 'archive-outline', title: 'Archive is empty', body: 'Long-press a note in Notes and choose Archive to keep it without the clutter.' }}
       />
+      <StatusScrim />
     </View>
   );
 }

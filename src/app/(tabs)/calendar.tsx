@@ -6,6 +6,7 @@ import { Fab } from '@/components/Fab';
 import { Icon } from '@/components/Icon';
 import { dayKey, MonthGrid } from '@/components/MonthGrid';
 import { ShellHeader } from '@/components/ShellHeader';
+import { StatusScrim } from '@/components/StatusScrim';
 import { listDated, onNotesChanged } from '@/db/database';
 import type { Note } from '@/db/types';
 import { fullDate, hijri, sameDay, startOfDay } from '@/lib/dates';
@@ -36,8 +37,8 @@ export default function CalendarScreen() {
   const loadEvents = useCallback(async () => {
     const ok = await hasPermission();
     setCanRead(ok);
-    setEvents(ok ? await eventsBetween(from, to) : []);
-  }, [from, to]);
+    setEvents(ok ? await eventsBetween(from, to, prefs.hiddenCalendars) : []);
+  }, [from, to, prefs.hiddenCalendars]);
   useFocusEffect(useCallback(() => { loadEvents(); }, [loadEvents]));
 
   // Dots: note colours first, then a dot for days with events
@@ -116,6 +117,7 @@ export default function CalendarScreen() {
         onList={() => router.push({ pathname: '/note/[id]', params: { id: 'new', kind: 'checklist', date: String(selected), color: prefs.defaultColor ?? '' } })}
         onEvent={() => router.push({ pathname: '/event', params: { date: String(selected) } })}
       />
+      <StatusScrim />
     </View>
   );
 }

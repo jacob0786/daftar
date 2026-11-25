@@ -8,6 +8,7 @@ import { FilterChips, type Filter } from '@/components/FilterChips';
 import { Icon } from '@/components/Icon';
 import { NoteList } from '@/components/NoteList';
 import { ShellHeader } from '@/components/ShellHeader';
+import { StatusScrim } from '@/components/StatusScrim';
 import {
   colorCounts, countByStatus, deleteLabel, getColorNames, labelCounts as getLabelCounts, onNotesChanged,
   saveLabel, setColorName, setPinned, setStatus, type SortOrder,
@@ -27,6 +28,8 @@ export default function NotesScreen() {
   const [searching, setSearching] = useState(false);
   const [filter, setFilter] = useState<Filter>({});
   const [sort, setSort] = useState<SortOrder>(prefs.defaultSort);
+  // Follow the "Sort notes by" setting when it loads or changes
+  useEffect(() => setSort(prefs.defaultSort), [prefs.defaultSort]);
   const notes = useNotes({ status: 'active', ...filter, query, sort });
   const searchRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
@@ -224,6 +227,7 @@ export default function NotesScreen() {
           syncSoon();
         }}
       />
+      <StatusScrim />
     </View>
   );
 }

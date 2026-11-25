@@ -48,7 +48,6 @@ export const NoteRow = memo(function NoteRow({ note, selected, onPress, onLongPr
       )}
 
       <View style={[styles.text, { paddingVertical: space(row.pad) }]}>
-        {!note.seen && <View style={[styles.lit, { backgroundColor: c.gold }]} />}
         <View style={styles.titleLine}>
           {note.locked && <Icon name="lock" size={16} color={c.inkMuted} />}
           <Text
@@ -100,7 +99,6 @@ const styles = StyleSheet.create({
   day: { width: DAY_COL, alignItems: 'center', justifyContent: 'center', borderRightWidth: StyleSheet.hairlineWidth },
   text: { flex: 1, paddingHorizontal: space(4), justifyContent: 'center', gap: space(1.5) },
   titleLine: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
-  lit: { position: 'absolute', left: 0, top: space(3), bottom: space(3), width: 3, borderRadius: 2 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: space(3) },
   track: { flex: 1, height: 4, borderRadius: 2, overflow: 'hidden', maxWidth: 140 },
   fill: { height: 4, borderRadius: 2 },

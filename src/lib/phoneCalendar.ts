@@ -1,26 +1,26 @@
-import * as Calendar from 'expo-calendar';
+// The classic calendar functions now live under /legacy (the top-level ones throw in Expo SDK 58)
+import * as Calendar from 'expo-calendar/legacy';
 
 // Events live in the phone's own calendar (your Google Calendar account on Android), never in notes.
 // Android syncs them to Google, so they show up in Google Calendar everywhere with their reminders.
 
-export type PhoneCalendar = { id: string; title: string; color: string; account: string; isGoogle: boolean; isPrimary: boolean };
+export type PhoneCalendar = { id: string; title: string; color: string; account: string; isGoogle: boolean; isPrimary: boolean; writable?: boolean };
 export type PhoneEvent = { id: string; title: string; start: number; end: number; allDay: boolean; color: string };
 
 export const available = true;
 
 export async function hasPermission() {
-  return (await Calendar.getCalendarPermissionsAsync()).granted;
+  try { return (await Calendar.getCalendarPermissionsAsync()).granted; } catch (e) { console.warn('Calendar permission check failed', e); return false; }
 }
 
 export async function askPermission() {
-  return (await Calendar.requestCalendarPermissionsAsync()).granted;
+  try { return (await Calendar.requestCalendarPermissionsAsync()).granted; } catch (e) { console.warn('Calendar permission request failed', e); return false; }
 }
 
-// Calendars you can add to, Google ones first, the main (primary) one at the top
-export async function writableCalendars(): Promise<PhoneCalendar[]> {
+// Every calendar on the phone, Google ones first, the main (primary) one at the top
+export async function allCalendars(): Promise<PhoneCalendar[]> {
   const all = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
   return all
-    .filter((c) => c.allowsModifications)
     .map((c) => ({
       id: c.id,
       title: c.title,
@@ -28,13 +28,21 @@ export async function writableCalendars(): Promise<PhoneCalendar[]> {
       account: c.source?.name ?? '',
       isGoogle: c.source?.type === 'com.google',
       isPrimary: !!c.isPrimary || c.title === c.source?.name,
+      writable: !!c.allowsModifications,
     }))
     .sort((a, b) => Number(b.isGoogle) - Number(a.isGoogle) || Number(b.isPrimary) - Number(a.isPrimary) || a.title.localeCompare(b.title));
 }
 
-export async function eventsBetween(from: number, to: number): Promise<PhoneEvent[]> {
+// Calendars you can add events to
+export async function writableCalendars(): Promise<PhoneCalendar[]> {
+  return (await allCalendars()).filter((c) => c.writable);
+}
+
+// Events from every calendar except the ones hidden in Settings
+export async function eventsBetween(from: number, to: number, hidden: string[] = []): Promise<PhoneEvent[]> {
   if (!(await hasPermission())) return [];
-  const cals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+  const cals = (await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT)).filter((c) => !hidden.includes(c.id));
+  if (!cals.length) return [];
   const colour = new Map(cals.map((c) => [c.id, c.color ?? '#888888']));
   const events = await Calendar.getEventsAsync(cals.map((c) => c.id), new Date(from), new Date(to));
   return events

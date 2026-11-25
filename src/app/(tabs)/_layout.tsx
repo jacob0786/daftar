@@ -9,6 +9,7 @@ export default function TabsLayout() {
     <NativeTabs
       backgroundColor={c.groundAlt}
       indicatorColor={c.primaryContainer}
+      labelVisibilityMode="unlabeled" // icons only, so nothing moves when you switch tabs (labels still read out by screen readers)
       labelStyle={{ default: { color: c.inkMuted }, selected: { color: c.ink } }}
       iconColor={{ default: c.inkMuted, selected: c.onPrimaryContainer }}>
       <NativeTabs.Trigger name="index">

@@ -53,8 +53,11 @@ export function MonthGrid({ month, selected, marks, onSelect, onMonth }: Props) 
         ))}
       </View>
 
-      <View style={styles.grid}>
-        {cells.map((d, i) => {
+      {/* One row per week, 7 equal cells each (wrapping by percentage widths can drop the 7th day to the next line on Android) */}
+      {Array.from({ length: cells.length / 7 }, (_, w) => (
+      <View key={w} style={styles.row}>
+        {cells.slice(w * 7, w * 7 + 7).map((d, j) => {
+          const i = w * 7 + j;
           if (d === null) return <View key={i} style={styles.cell} />;
           const ms = new Date(y, m, d).getTime();
           const isToday = sameDay(ms, Date.now());
@@ -68,7 +71,8 @@ export function MonthGrid({ month, selected, marks, onSelect, onMonth }: Props) 
               accessibilityRole="button"
               accessibilityState={{ selected: isSel }}
               accessibilityLabel={`${d} ${MONTHS_LONG[m]}${dots.length ? `, ${dots.length} notes` : ''}`}>
-              <View style={[styles.dayCircle, isSel && { backgroundColor: c.primary }]}>
+              {/* Background always set (transparent when not selected): adding it later drops the rounding on Android */}
+              <View style={[styles.dayCircle, { backgroundColor: isSel ? c.primary : 'transparent' }]}>
                 <Text style={[type.label, { color: isSel ? c.onPrimary : isToday ? c.goldInk : c.ink, fontWeight: isToday || isSel ? '700' : '500', fontVariant: ['tabular-nums'] }]}>{d}</Text>
               </View>
               <View style={styles.dots}>
@@ -80,6 +84,7 @@ export function MonthGrid({ month, selected, marks, onSelect, onMonth }: Props) 
           );
         })}
       </View>
+      ))}
     </View>
   );
 }
@@ -89,8 +94,8 @@ const styles = StyleSheet.create({
   nav: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   week: { flexDirection: 'row', paddingHorizontal: space(2) },
   weekDay: { flex: 1, textAlign: 'center', paddingVertical: space(1) },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: space(2) },
-  cell: { width: `${100 / 7}%`, height: 52, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', paddingHorizontal: space(2) },
+  cell: { flex: 1, height: 52, alignItems: 'center', justifyContent: 'center' },
   dayCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   dots: { flexDirection: 'row', gap: 3, height: 6, marginTop: 2 },
   dot: { width: 5, height: 5, borderRadius: 3 },

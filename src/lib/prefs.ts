@@ -23,6 +23,8 @@ export type Prefs = {
   showHijri: boolean;
   hijriAdjust: number; // -2..2 days
   detectDates: boolean; // suggest a calendar date when a note mentions one
+  hiddenCalendars: string[]; // phone calendars NOT shown on the Calendar tab
+  eventCalendar: string | null; // where new events go (null = main Google calendar)
 };
 
 export const DEFAULT_PREFS: Prefs = {
@@ -38,6 +40,8 @@ export const DEFAULT_PREFS: Prefs = {
   showHijri: true,
   hijriAdjust: 0,
   detectDates: true,
+  hiddenCalendars: [],
+  eventCalendar: null,
 };
 
 let prefs: Prefs = DEFAULT_PREFS;

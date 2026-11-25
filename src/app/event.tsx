@@ -9,6 +9,7 @@ import { Sheet, SheetRow } from '@/components/FilterChips';
 import { Icon, type IconName } from '@/components/Icon';
 import { fullDate, startOfDay } from '@/lib/dates';
 import { askPermission, createEvent, writableCalendars, type PhoneCalendar } from '@/lib/phoneCalendar';
+import { getPrefs } from '@/lib/prefs';
 import { space, type, useTheme } from '@/theme';
 
 const REMINDERS: { label: string; minutes: number | null }[] = [
@@ -50,7 +51,9 @@ export default function NewEventScreen() {
       if (!(await askPermission())) return setError('Daftar needs calendar access to add events. Allow it in Android settings, then try again.');
       const list = await writableCalendars();
       setCalendars(list);
-      setCalendarId(list[0]?.id ?? null);
+      // The calendar picked in Settings, if it's still on the phone; otherwise the main Google one
+      const saved = getPrefs().eventCalendar;
+      setCalendarId(list.find((x) => x.id === saved)?.id ?? list[0]?.id ?? null);
       if (!list.length) setError('No calendar on this phone accepts new events. Add your Google account in Android settings.');
     })();
   }, []);

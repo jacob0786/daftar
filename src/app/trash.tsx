@@ -5,6 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Dialog } from '@/components/Dialog';
 import { NoteList } from '@/components/NoteList';
 import { ShellHeader } from '@/components/ShellHeader';
+import { StatusScrim } from '@/components/StatusScrim';
 import { deleteForever, setStatus } from '@/db/database';
 import { useNotes } from '@/hooks/useNotes';
 import { syncSoon } from '@/sync/scheduler';
@@ -73,6 +74,7 @@ export default function TrashScreen() {
           },
         ]}
       />
+      <StatusScrim />
     </View>
   );
 }

@@ -1,17 +1,19 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { useRouter } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { SORTS } from '@/components/FilterChips';
 import { Icon, type IconName } from '@/components/Icon';
 import { ShellHeader } from '@/components/ShellHeader';
+import { StatusScrim } from '@/components/StatusScrim';
 import { countByStatus, getColorNames } from '@/db/database';
 import type { ColorIndex } from '@/db/types';
 import { useSyncState } from '@/hooks/useNotes';
 import { importNotes, preview, readExport, type ImportPreview } from '@/import/colornote';
 import { backupFileName, buildBackup, readBackup, restoreBackup, type Backup } from '@/lib/backup';
 import { hijri, relativeTime } from '@/lib/dates';
+import { allCalendars, askPermission as askCalendarPermission, available as phoneCalendar, hasPermission as hasCalendarPermission, type PhoneCalendar } from '@/lib/phoneCalendar';
 import { setPref } from '@/lib/prefs';
 import { hasBiometrics } from '@/lib/secure';
 import { shareTextFile } from '@/lib/share';
@@ -34,6 +36,7 @@ export default function SettingsScreen() {
   const [pass2, setPass2] = useState('');
   const [lockMsg, setLockMsg] = useState<Msg>(null);
   const [deriving, setDeriving] = useState(false);
+  const [usePass, setUsePass] = useState(false);
   const refreshVault = async () => setVault(!(await isVaultSetUp()) ? 'none' : isUnlocked() ? 'unlocked' : 'locked');
   useEffect(() => {
     refreshVault();
@@ -183,6 +186,7 @@ export default function SettingsScreen() {
     : 'Not connected. Notes are stored on this device only.';
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView style={{ backgroundColor: c.ground }} contentContainerStyle={{ paddingBottom: space(10) }} keyboardShouldPersistTaps="handled">
       <ShellHeader title="Settings" sub={`${counts.active} notes · ${counts.archived} archived · ${counts.trash} in trash`} />
 
@@ -213,7 +217,7 @@ export default function SettingsScreen() {
         <Choice label="Sort notes by" value={prefs.defaultSort} onChange={(v) => setPref('defaultSort', v)} options={SORTS.map((s) => ({ id: s.id, label: s.label }))} wrap />
         <View style={{ gap: space(2) }}>
           <Text style={[type.labelSmall, { color: c.inkMuted }]}>Colour for new notes</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.swatches}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bleed} contentContainerStyle={[styles.swatches, { paddingRight: space(5) }]}>
             <ColorDot label="None" on={prefs.defaultColor === null} fill={c.ground} onPress={() => setPref('defaultColor', null)} />
             {COLOR_NAMES.map((name, i) => (
               <ColorDot key={name} label={colorNames[i] ?? name} on={prefs.defaultColor === i} fill={ink(i as ColorIndex)} onPress={() => setPref('defaultColor', i as ColorIndex)} />
@@ -224,17 +228,20 @@ export default function SettingsScreen() {
         <Toggle label="Show Hijri date" hint={hijri(new Date(), prefs.hijriAdjust).english} value={prefs.showHijri} onChange={(v) => setPref('showHijri', v)} />
         {prefs.showHijri ? (
           <View style={styles.stepper}>
-            <Text style={[type.bodySmall, { color: c.inkMuted, flex: 1 }]}>Match your masjid</Text>
-            <Button label="−1 day" onPress={() => setPref('hijriAdjust', Math.max(-2, prefs.hijriAdjust - 1))} disabled={prefs.hijriAdjust <= -2} />
+            <Text style={[type.bodySmall, { color: c.inkMuted, flex: 1 }]} numberOfLines={2}>Adjust days to match your masjid</Text>
+            <Step icon="minus" label="One day earlier" onPress={() => setPref('hijriAdjust', Math.max(-2, prefs.hijriAdjust - 1))} disabled={prefs.hijriAdjust <= -2} />
             <Text style={[type.titleMedium, { color: c.ink, fontVariant: ['tabular-nums'], minWidth: 32, textAlign: 'center' }]}>{prefs.hijriAdjust > 0 ? `+${prefs.hijriAdjust}` : prefs.hijriAdjust}</Text>
-            <Button label="+1 day" onPress={() => setPref('hijriAdjust', Math.min(2, prefs.hijriAdjust + 1))} disabled={prefs.hijriAdjust >= 2} />
+            <Step icon="plus" label="One day later" onPress={() => setPref('hijriAdjust', Math.min(2, prefs.hijriAdjust + 1))} disabled={prefs.hijriAdjust >= 2} />
           </View>
         ) : null}
       </Section>
 
+      {/* Calendar (phone only) */}
+      {phoneCalendar ? <CalendarSection /> : null}
+
       {/* Sync */}
       <Section icon="cloud-sync-outline" title="Sync with Turso" status={syncLine} statusTone={sync.kind === 'error' ? 'bad' : 'plain'}>
-        {connected ? <Button label="Sync now" icon="sync" onPress={syncInBackground} filled /> : null}
+        {connected ? <Button label="Sync now" icon="sync" onPress={syncInBackground} /> : null}
         <Toggle label="Sync when the app opens" value={prefs.syncOnLaunch} onChange={(v) => setPref('syncOnLaunch', v)} />
         {syncHidden ? (
           <View style={{ gap: space(2) }}>
@@ -271,8 +278,17 @@ export default function SettingsScreen() {
         ) : vault === 'locked' ? (
           <>
             {hasBiometrics ? <Button label="Unlock with fingerprint" icon="fingerprint" onPress={() => unlockWithBiometrics()} filled /> : null}
-            <Field label="Lock passphrase" value={pass1} onChange={setPass1} secure />
-            <Button label={deriving ? 'Unlocking…' : 'Unlock with passphrase'} icon="lock-open-variant-outline" onPress={unlock} disabled={!pass1 || deriving} />
+            {/* Passphrase entry only when asked for (or when there's no fingerprint), so the section isn't three ways to unlock at once */}
+            {hasBiometrics && !usePass ? (
+              <Pressable onPress={() => setUsePass(true)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center' }}>
+                <Text style={[type.label, { color: c.primary }]}>Use passphrase instead</Text>
+              </Pressable>
+            ) : (
+              <>
+                <Field label="Lock passphrase" value={pass1} onChange={setPass1} secure />
+                <Button label={deriving ? 'Unlocking…' : 'Unlock with passphrase'} icon="lock-open-variant-outline" onPress={unlock} disabled={!pass1 || deriving} />
+              </>
+            )}
           </>
         ) : (
           <Button label="Lock now" icon="lock" onPress={() => lockNow()} />
@@ -339,6 +355,50 @@ export default function SettingsScreen() {
         ) : null}
       </Section>
     </ScrollView>
+    <StatusScrim />
+    </View>
+  );
+}
+
+// Which phone calendars show on the Calendar tab, and where new events go
+function CalendarSection() {
+  const { c, prefs } = useTheme();
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+  const [cals, setCals] = useState<PhoneCalendar[]>([]);
+
+  const load = async () => {
+    const ok = await hasCalendarPermission();
+    setAllowed(ok);
+    if (ok) setCals(await allCalendars());
+  };
+  useFocusEffect(useCallback(() => { load(); }, []));
+
+  const toggle = (id: string, show: boolean) =>
+    setPref('hiddenCalendars', show ? prefs.hiddenCalendars.filter((x) => x !== id) : [...prefs.hiddenCalendars, id]);
+  const writable = cals.filter((x) => x.writable);
+  const target = writable.find((x) => x.id === prefs.eventCalendar) ?? writable[0];
+  const name = (x: PhoneCalendar) => (x.account && x.account !== x.title ? `${x.title} · ${x.account}` : x.title);
+
+  return (
+    <Section icon="calendar-month-outline" title="Calendar" status={allowed === false ? 'Not connected to your phone calendars' : `${cals.length - prefs.hiddenCalendars.filter((id) => cals.some((x) => x.id === id)).length} of ${cals.length} calendars shown`}>
+      {allowed === false ? (
+        <Button label="Allow calendar access" icon="calendar-sync-outline" onPress={async () => { if (await askCalendarPermission()) load(); }} filled />
+      ) : (
+        <>
+          <Text style={[type.labelSmall, { color: c.inkMuted }]}>Show on the Calendar tab</Text>
+          {cals.map((x) => (
+            <Pressable key={x.id} onPress={() => toggle(x.id, prefs.hiddenCalendars.includes(x.id))} style={styles.toggle} accessibilityRole="switch" accessibilityState={{ checked: !prefs.hiddenCalendars.includes(x.id) }}>
+              <View style={[styles.calDot, { backgroundColor: x.color }]} />
+              <Text style={[type.body, { color: c.ink, flex: 1 }]} numberOfLines={1}>{name(x)}</Text>
+              <Switch value={!prefs.hiddenCalendars.includes(x.id)} onValueChange={(v) => toggle(x.id, v)} trackColor={{ true: c.primary, false: c.ruleStrong }} thumbColor={!prefs.hiddenCalendars.includes(x.id) ? c.onPrimary : c.inkMuted} />
+            </Pressable>
+          ))}
+          {writable.length > 1 ? (
+            <Choice label="New events go to" value={target?.id ?? ''} onChange={(v) => setPref('eventCalendar', v)} options={writable.map((x) => ({ id: x.id, label: x.title }))} wrap />
+          ) : null}
+        </>
+      )}
+    </Section>
   );
 }
 
@@ -372,6 +432,17 @@ function Button({ label, icon, onPress, filled, disabled }: { label: string; ico
       style={[styles.button, filled ? { backgroundColor: c.primary } : { borderColor: c.ruleStrong, borderWidth: 1 }, disabled && { opacity: 0.45 }]}>
       {icon ? <Icon name={icon} size={18} color={fg} /> : null}
       <Text style={[type.label, { color: fg }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+// Small round +/− button for the Hijri adjustment
+function Step({ icon, label, onPress, disabled }: { icon: IconName; label: string; onPress: () => void; disabled?: boolean }) {
+  const { c } = useTheme();
+  return (
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} android_ripple={{ color: c.rule, borderless: true, radius: 24 }}
+      style={[styles.step, { borderColor: c.ruleStrong }, disabled && { opacity: 0.45 }]}>
+      <Icon name={icon} size={20} color={c.primary} />
     </Pressable>
   );
 }
@@ -476,6 +547,9 @@ const styles = StyleSheet.create({
   input: { borderRadius: 4, paddingHorizontal: space(4), height: 52 },
   message: { flexDirection: 'row', gap: space(2), alignItems: 'flex-start' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
+  calDot: { width: 14, height: 14, borderRadius: 7 },
+  step: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  bleed: { marginRight: -space(5) }, // let the colour row run to the screen edge so it reads as scrollable
   segments: { flexDirection: 'row', borderWidth: 1, borderRadius: 20, overflow: 'hidden', alignSelf: 'stretch' },
   segmentsWrap: { borderWidth: 0, flexWrap: 'wrap', gap: space(2), borderRadius: 0 },
   segment: { flex: 1, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space(1), paddingHorizontal: space(2) },
