@@ -3,7 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { useTheme } from '@/theme';
 
 // Notebook-paper lines behind a note's text: one line under every line of writing.
-// `height` is the area to fill, `lineHeight` the spacing (the text's line height), `offset` where the first line of text starts.
+// `height` is the area to fill, `lineHeight` the spacing (the text's line height).
+// `offset` moves every line up (negative) or down (positive); 0 puts each line at the bottom edge of its text line.
 export function RuledLines({ height, lineHeight, offset = 0 }: { height: number; lineHeight: number; offset?: number }) {
   const { c } = useTheme();
   const count = Math.max(0, Math.floor((height - offset) / lineHeight));

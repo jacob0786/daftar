@@ -345,7 +345,8 @@ export default function NoteScreen() {
                 pointerEvents="none">
                 A
               </Text>
-              <RuledLines height={bodyHeight} lineHeight={lineH} />
+              {/* Lines lifted by a fifth of a line so the letters sit on them like handwriting (raise 0.2 to lift more, lower it to drop them) */}
+              <RuledLines height={bodyHeight} lineHeight={lineH} offset={-lineH * 0.2} />
               <TextInput
                 value={note.body}
                 ref={bodyRef}
