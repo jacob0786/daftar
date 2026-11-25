@@ -25,6 +25,16 @@ try {
     $lines = @(if (Test-Path $props) { Get-Content $props | Where-Object { $_ -notmatch '^cmake\.dir=' } })
     Set-Content $props ($lines + "cmake.dir=$cmake") -Encoding ascii
 
+    # Give the Gradle and Kotlin compilers enough memory, and run fewer tasks at once (this PC has little RAM free)
+    $gp = 'android\gradle.properties'
+    $keep = @(Get-Content $gp | Where-Object { $_ -notmatch '^(org\.gradle\.jvmargs|kotlin\.daemon\.jvmargs|org\.gradle\.workers\.max|org\.gradle\.parallel)=' })
+    Set-Content $gp ($keep + @(
+        'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8',
+        'kotlin.daemon.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=1g',
+        'org.gradle.workers.max=2',
+        'org.gradle.parallel=false'
+    )) -Encoding ascii
+
     Push-Location android
     .\gradlew.bat assembleRelease -PreactNativeArchitectures=arm64-v8a --console=plain
     if ($LASTEXITCODE -ne 0) { throw 'Gradle build failed' }
