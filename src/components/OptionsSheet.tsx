@@ -21,7 +21,7 @@ type Props = {
   onDismiss: () => void;
 };
 
-// Bottom sheet: colour, labels, and note actions
+// Bottom sheet: tags (one colour tag + any topic tags), and note actions
 export function OptionsSheet({ visible, note, labels, colorNames, actions, onColor, onToggleLabel, onDismiss }: Props) {
   const { c, ink } = useTheme();
   const insets = useSafeAreaInsets();
@@ -33,22 +33,27 @@ export function OptionsSheet({ visible, note, labels, colorNames, actions, onCol
       <View style={[styles.sheet, { backgroundColor: c.ground, paddingBottom: insets.bottom + space(4) }]}>
         <View style={[styles.handle, { backgroundColor: c.ruleStrong }]} />
         <ScrollView>
-          <Text style={[type.labelSmall, styles.heading, { color: c.inkMuted }]}>COLOUR</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.swatches}>
-            <Swatch label="None" on={note.color === null} onPress={() => onColor(null)} fill={c.ground} border={c.ruleStrong} icon="close" />
-            {COLOR_NAMES.map((name, i) => (
-              <Swatch
-                key={name}
-                label={colorNames[i] ?? name}
-                on={note.color === i}
-                onPress={() => onColor(i as ColorIndex)}
-                fill={ink(i as ColorIndex)}
-                border={i === 8 ? c.ruleStrong : 'transparent'}
-              />
-            ))}
-          </ScrollView>
+          {/* One place for tags. Colour tags (pick one) set the note's colour; topic tags (pick any) group it. */}
+          <Text style={[type.labelSmall, styles.heading, { color: c.inkMuted }]}>COLOUR TAG</Text>
+          <View style={styles.labels}>
+            {COLOR_NAMES.map((name, i) => {
+              const on = note.color === i;
+              return (
+                <Pressable
+                  key={name}
+                  onPress={() => onColor(on ? null : (i as ColorIndex))}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                  style={[styles.labelChip, on ? { backgroundColor: c.primaryContainer, borderColor: c.primaryContainer } : { borderColor: c.ruleStrong }]}>
+                  <View style={[styles.tagDot, { backgroundColor: ink(i as ColorIndex), borderColor: c.ruleStrong }]} />
+                  <Text style={[type.label, { color: on ? c.onPrimaryContainer : c.ink }]}>{colorNames[i] ?? name}</Text>
+                  {on ? <Icon name="check" size={16} color={c.onPrimaryContainer} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
 
-          <Text style={[type.labelSmall, styles.heading, { color: c.inkMuted }]}>LABELS</Text>
+          <Text style={[type.labelSmall, styles.heading, { color: c.inkMuted }]}>TAGS</Text>
           <View style={styles.labels}>
             {labels.map((l) => {
               const on = note.labels.includes(l.id);
@@ -66,7 +71,7 @@ export function OptionsSheet({ visible, note, labels, colorNames, actions, onCol
             })}
             <Pressable onPress={() => setNewLabel(true)} accessibilityRole="button" style={[styles.labelChip, { borderColor: c.ruleStrong, borderStyle: 'dashed' }]}>
               <Icon name="plus" size={16} color={c.primary} />
-              <Text style={[type.label, { color: c.primary }]}>New label</Text>
+              <Text style={[type.label, { color: c.primary }]}>New tag</Text>
             </Pressable>
           </View>
 
@@ -82,7 +87,7 @@ export function OptionsSheet({ visible, note, labels, colorNames, actions, onCol
 
       <PromptDialog
         visible={newLabel}
-        title="New label"
+        title="New tag"
         placeholder="e.g. Tajwid, Shopping"
         confirm="Add"
         onDismiss={() => setNewLabel(false)}
@@ -93,27 +98,14 @@ export function OptionsSheet({ visible, note, labels, colorNames, actions, onCol
       />
     </Modal>
   );
-
-  function Swatch({ label, on, onPress, fill, border, icon }: { label: string; on: boolean; onPress: () => void; fill: string; border: string; icon?: IconName }) {
-    return (
-      <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={label} style={styles.swatchWrap}>
-        <View style={[styles.swatch, { backgroundColor: fill, borderColor: on ? c.primary : border, borderWidth: on ? 3 : 1 }]}>
-          {on ? <Icon name="check" size={20} color={fill === c.ground || label === 'White' ? c.primary : '#FFFFFF'} /> : icon ? <Icon name={icon} size={18} color={c.inkMuted} /> : null}
-        </View>
-        <Text style={[type.labelSmall, { color: c.inkMuted, maxWidth: 64 }]} numberOfLines={1}>{label}</Text>
-      </Pressable>
-    );
-  }
 }
 
 const styles = StyleSheet.create({
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '80%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: space(2) },
   handle: { alignSelf: 'center', width: 32, height: 4, borderRadius: 2, marginVertical: space(2) },
   heading: { paddingHorizontal: space(6), paddingTop: space(4), paddingBottom: space(2), letterSpacing: 0.8 },
-  swatches: { paddingHorizontal: space(5), gap: space(2) },
-  swatchWrap: { alignItems: 'center', gap: space(1), width: 64 },
-  swatch: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   labels: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2), paddingHorizontal: space(6) },
+  tagDot: { width: 14, height: 14, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },
   labelChip: { height: 32, borderRadius: 8, borderWidth: 1, paddingHorizontal: space(3), flexDirection: 'row', alignItems: 'center', gap: space(1.5) },
   divider: { height: StyleSheet.hairlineWidth, marginTop: space(5), marginBottom: space(1) },
   action: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: space(4), paddingHorizontal: space(6) },

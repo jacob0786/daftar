@@ -202,8 +202,8 @@ export default function NotesScreen() {
 
       <PromptDialog
         visible={naming !== null}
-        title={naming !== null ? `Name ${COLOR_NAMES[naming].toLowerCase()}` : ''}
-        body="Give this colour a meaning, like Study or Shopping. The name shows on the filter chip and in the colour picker."
+        title={naming !== null ? `Name the ${COLOR_NAMES[naming].toLowerCase()} tag` : ''}
+        body="Name this colour tag after what it's for, like Study or Shopping. Every note in this colour has the tag."
         initial={naming !== null ? colorNames[naming] ?? '' : ''}
         placeholder={naming !== null ? COLOR_NAMES[naming] : ''}
         onDismiss={() => setNaming(null)}

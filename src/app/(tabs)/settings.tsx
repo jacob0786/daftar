@@ -216,7 +216,7 @@ export default function SettingsScreen() {
       <Section icon="note-text-outline" title="Notes">
         <Choice label="Sort notes by" value={prefs.defaultSort} onChange={(v) => setPref('defaultSort', v)} options={SORTS.map((s) => ({ id: s.id, label: s.label }))} wrap />
         <View style={{ gap: space(2) }}>
-          <Text style={[type.labelSmall, { color: c.inkMuted }]}>Colour for new notes</Text>
+          <Text style={[type.labelSmall, { color: c.inkMuted }]}>Colour tag for new notes</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bleed} contentContainerStyle={[styles.swatches, { paddingRight: space(5) }]}>
             <ColorDot label="None" on={prefs.defaultColor === null} fill={c.ground} onPress={() => setPref('defaultColor', null)} />
             {COLOR_NAMES.map((name, i) => (

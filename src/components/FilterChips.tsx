@@ -30,12 +30,14 @@ type Props = {
   onSort: (s: SortOrder) => void;
 };
 
-// One row: All / Notes / Lists, the colours in use, then a single Tags chip. Sort sits at the end.
+// One row: All / Notes / Lists, the colour tags in use (each colour is a tag, named in the app), then a Tags chip
+// that opens every tag. Sort sits at the end.
 export function FilterChips({ value, onChange, colors, colorNames, labels, labelCounts, onNameColor, onManageLabel, sort, onSort }: Props) {
   const { c, ink } = useTheme();
   const [sheet, setSheet] = useState<'tags' | 'sort' | null>(null);
   const none = !value.kind && value.color === undefined && !value.labelId;
   const activeLabel = labels.find((l) => l.id === value.labelId);
+  const hasTags = labels.length > 0 || colors.size > 0;
 
   return (
     <View style={[styles.bar, { borderBottomColor: c.rule }]}>
@@ -48,17 +50,17 @@ export function FilterChips({ value, onChange, colors, colorNames, labels, label
             key={i}
             dot={ink(i as ColorIndex)}
             on={value.color === i}
-            label={colorNames[i] ?? ''}
-            a11y={`${colorNames[i] ?? COLOR_NAMES[i]} colour. Long-press to name it.`}
+            label={colorNames[i] ?? COLOR_NAMES[i]}
+            a11y={`${colorNames[i] ?? COLOR_NAMES[i]} tag. Long-press to rename it.`}
             onPress={() => onChange(value.color === i ? {} : { color: i as ColorIndex })}
             onLongPress={() => onNameColor(i as ColorIndex)}
           />
         ))}
-        {labels.length > 0 && (
+        {hasTags && (
           <Chip
             on={!!activeLabel}
             icon="tag-outline"
-            label={activeLabel ? activeLabel.name : 'Tags'}
+            label={activeLabel ? activeLabel.name : 'All tags'}
             trailing="menu-down"
             onPress={() => setSheet('tags')}
           />
@@ -74,7 +76,22 @@ export function FilterChips({ value, onChange, colors, colorNames, labels, label
       </Pressable>
 
       <Sheet visible={sheet === 'tags'} title="Tags" onDismiss={() => setSheet(null)}>
-        <Text style={[type.bodySmall, styles.hint, { color: c.inkMuted }]}>Tags group notes by topic. Long-press a tag to rename or delete it.</Text>
+        <Text style={[type.bodySmall, styles.hint, { color: c.inkMuted }]}>
+          Colour tags give a note its colour; a note has one. Other tags group notes by topic, as many as you like. Long-press any tag to rename it.
+        </Text>
+        {/* Colour tags first (the ones in use), then the rest */}
+        {[...colors.keys()].sort((a, b) => a - b).map((i) => (
+          <SheetRow
+            key={`c${i}`}
+            icon={value.color === i ? 'check' : 'circle'}
+            iconColor={value.color === i ? undefined : ink(i as ColorIndex)}
+            label={colorNames[i] ?? COLOR_NAMES[i]}
+            count={colors.get(i) ?? 0}
+            on={value.color === i}
+            onPress={() => { onChange(value.color === i ? {} : { color: i as ColorIndex }); setSheet(null); }}
+            onLongPress={() => { setSheet(null); onNameColor(i as ColorIndex); }}
+          />
+        ))}
         {labels.map((l) => (
           <SheetRow
             key={l.id}
@@ -138,14 +155,14 @@ export function Sheet({ visible, title, onDismiss, children }: { visible: boolea
   );
 }
 
-export function SheetRow({ icon, label, count, on, onPress, onLongPress, tone }: {
-  icon: IconName; label: string; count?: number; on?: boolean; onPress: () => void; onLongPress?: () => void; tone?: 'danger';
+export function SheetRow({ icon, iconColor, label, count, on, onPress, onLongPress, tone }: {
+  icon: IconName; iconColor?: string; label: string; count?: number; on?: boolean; onPress: () => void; onLongPress?: () => void; tone?: 'danger';
 }) {
   const { c } = useTheme();
   const fg = tone === 'danger' ? c.danger : on ? c.primary : c.ink;
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} android_ripple={{ color: c.rule }} accessibilityRole="button" accessibilityState={{ selected: on }} style={styles.sheetRow}>
-      <Icon name={icon} color={tone === 'danger' ? c.danger : on ? c.primary : c.inkMuted} />
+      <Icon name={icon} color={iconColor ?? (tone === 'danger' ? c.danger : on ? c.primary : c.inkMuted)} />
       <Text style={[type.body, { color: fg, flex: 1 }]} numberOfLines={1}>{label}</Text>
       {count !== undefined ? <Text style={[type.labelSmall, { color: c.inkMuted, fontVariant: ['tabular-nums'] }]}>{count}</Text> : null}
     </Pressable>
