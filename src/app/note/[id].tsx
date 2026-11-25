@@ -59,6 +59,7 @@ export default function NoteScreen() {
   const [snack, setSnack] = useState<SnackMessage>(null);
   const clearSnack = useCallback(() => setSnack(null), []);
   const [bodyHeight, setBodyHeight] = useState(0); // for the ruled lines
+  const [lineH, setLineH] = useState(type.reading.lineHeight); // measured line height, so the lines never drift from the text
   // Lists: the pinned "Add item" bar adds at the top, so jump back up to show it
   const addItem = useRef<(() => void) | null>(null);
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
@@ -336,7 +337,15 @@ export default function NoteScreen() {
             ) : (
               // Ruled lines behind the text, like notebook paper
               <View onLayout={(e) => setBodyHeight(e.nativeEvent.layout.height)}>
-              <RuledLines height={bodyHeight} lineHeight={type.reading.lineHeight} />
+              {/* Invisible one-line sample: the phone's real line height (it can differ slightly from the number in the style) */}
+              <Text
+                onLayout={(e) => setLineH(e.nativeEvent.layout.height)}
+                style={[type.reading, { position: 'absolute', opacity: 0, includeFontPadding: false }]}
+                importantForAccessibility="no-hide-descendants"
+                pointerEvents="none">
+                A
+              </Text>
+              <RuledLines height={bodyHeight} lineHeight={lineH} />
               <TextInput
                 value={note.body}
                 ref={bodyRef}
@@ -352,7 +361,7 @@ export default function NoteScreen() {
                 selectionColor={c.primary}
                 cursorColor={c.primary}
                 textAlignVertical="top"
-                style={[type.reading, styles.body, { color: c.ink, textAlign: bodyRTL ? 'right' : 'left', writingDirection: bodyRTL ? 'rtl' : 'ltr' }]}
+                style={[type.reading, styles.body, { minHeight: lineH * 12, color: c.ink, textAlign: bodyRTL ? 'right' : 'left', writingDirection: bodyRTL ? 'rtl' : 'ltr' }]}
               />
               </View>
             )}
